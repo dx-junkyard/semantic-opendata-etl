@@ -1,0 +1,5 @@
+celery
+redis
+neo4j
+qdrant-client
+pymongo

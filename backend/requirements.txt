@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+redis
+celery
+neo4j
+qdrant-client
+pymongo
