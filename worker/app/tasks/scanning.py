@@ -63,6 +63,8 @@ def extract_links(soup, base_url):
     base_domain = urlparse(base_url).netloc
 
     for a_tag in soup.find_all('a', href=True):
+        if len(links) >= 100:
+            break
         href = a_tag['href']
         full_url = urljoin(base_url, href)
         parsed_url = urlparse(full_url)
