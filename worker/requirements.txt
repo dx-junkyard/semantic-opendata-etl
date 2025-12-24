@@ -3,3 +3,8 @@ redis
 neo4j
 qdrant-client
 pymongo
+requests
+beautifulsoup4
+lxml
+pandas
+pyyaml
