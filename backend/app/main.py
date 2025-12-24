@@ -48,6 +48,7 @@ def get_site_tree():
                 MATCH (p:Page)
                 WITH p LIMIT 100
                 OPTIONAL MATCH (p)-[r:LINKS_TO]->(c:Page)
+                WHERE c.level > p.level
                 RETURN p.url as url, p.title as title, collect(c.url) as children
             """)
             
