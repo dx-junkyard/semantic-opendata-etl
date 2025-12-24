@@ -41,9 +41,12 @@ def read_root():
 def get_site_tree():
     try:
         with driver.session() as session:
-            # Cypher query to get nodes and relationships
+            # Cypher query to get nodes and relationships with limit
+            # Note: Limiting nodes might result in disconnected graph if relations are not carefully handled,
+            # but for preventing crash, we just limit the start nodes.
             result = session.run("""
                 MATCH (p:Page)
+                WITH p LIMIT 100
                 OPTIONAL MATCH (p)-[r:LINKS_TO]->(c:Page)
                 RETURN p.url as url, p.title as title, collect(c.url) as children
             """)
@@ -53,19 +56,28 @@ def get_site_tree():
                 url = record["url"]
                 title = record["title"] or url
                 children = record["children"]
-                # A simple structure: list of nodes with links
                 nodes.append({
                     "id": url,
                     "label": title,
                     "children": children
                 })
             
-            # Reconstruct tree in Python or send flat list? 
-            # Sending a flat list with children references is easier for frontend to reconstruct if needed, 
-            # or we can build the tree here. For now, let's send this node list which basically is an adjacency list.
+            print(f"DEBUG: Returning {len(nodes)} nodes to frontend")
             return {"nodes": nodes}
     except Exception as e:
+        print(f"Error fetching tree: {e}")
         return {"error": str(e)}
+
+@app.post("/api/v1/reset")
+def reset_db():
+    try:
+        with driver.session() as session:
+            session.run("MATCH (n) DETACH DELETE n")
+        print("Database reset successfully")
+        return {"status": "Database reset"}
+    except Exception as e:
+         print(f"Error resetting database: {e}")
+         return {"error": str(e)}
 
 @app.post("/scan")
 def trigger_scan(request: ScanRequest):
