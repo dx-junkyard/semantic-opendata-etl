@@ -38,33 +38,47 @@ def read_root():
     return {"message": "Hello from Semantic Opendata ETL Platform API"}
 
 @app.get("/api/v1/tree")
-def get_site_tree():
+def get_site_tree(url: str = None):
     try:
         with driver.session() as session:
-            # Cypher query to get nodes and relationships with limit
-            # Note: Limiting nodes might result in disconnected graph if relations are not carefully handled,
-            # but for preventing crash, we just limit the start nodes.
+            # If no URL provided, get roots (nodes with no incoming LINKS_TO within the dataset, or just top nodes)
+            # For simplicity in this focused view, if no URL, we return the top "root" pages (no parents in DB)
+            if not url:
+                result = session.run("""
+                    MATCH (n:Page)
+                    WHERE NOT ()-[:LINKS_TO]->(n)
+                    RETURN n.url as url, n.title as title
+                    LIMIT 20
+                """)
+                nodes = [{"id": record["url"], "label": record["title"] or record["url"], "type": "root"} for record in result]
+                return {"nodes": nodes, "parent": None, "current": None}
+
+            # If URL is provided, get specific node, its children, and its parent(s)
             result = session.run("""
-                MATCH (p:Page)
-                WITH p LIMIT 100
-                OPTIONAL MATCH (p)-[r:LINKS_TO]->(c:Page)
-                WHERE c.level > p.level
-                RETURN p.url as url, p.title as title, collect(c.url) as children
-            """)
+                MATCH (current:Page {url: $url})
+                OPTIONAL MATCH (current)-[:LINKS_TO]->(child:Page)
+                OPTIONAL MATCH (parent:Page)-[:LINKS_TO]->(current)
+                RETURN 
+                    current.url as current_url, current.title as current_title,
+                    collect(DISTINCT {id: child.url, label: child.title}) as children,
+                    collect(DISTINCT {id: parent.url, label: parent.title}) as parents
+            """, url=url)
             
-            nodes = []
-            for record in result:
-                url = record["url"]
-                title = record["title"] or url
-                children = record["children"]
-                nodes.append({
-                    "id": url,
-                    "label": title,
-                    "children": children
-                })
+            data = result.single()
+            if not data:
+                return {"error": "Node not found"}
+
+            current_node = {"id": data["current_url"], "label": data["current_title"] or data["current_url"]}
             
-            print(f"DEBUG: Returning {len(nodes)} nodes to frontend")
-            return {"nodes": nodes}
+            # Clean up children/parents (remove nulls if any)
+            children = [c for c in data["children"] if c["id"]]
+            parents = [p for p in data["parents"] if p["id"]]
+            
+            return {
+                "current": current_node,
+                "children": children,
+                "parents": parents
+            }
     except Exception as e:
         print(f"Error fetching tree: {e}")
         return {"error": str(e)}
