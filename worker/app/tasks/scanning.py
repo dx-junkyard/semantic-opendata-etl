@@ -32,7 +32,7 @@ def fetch_page(url):
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        return response.text
+        return response
     except requests.exceptions.RequestException as e:
         logging.warning(f"Failed to fetch {url}: {e}")
         return None
@@ -104,9 +104,9 @@ def scan_site(url, max_depth=2):
 
         print(f"Fetching: {current_url} (Depth: {current_depth})")
         logging.info(f"FETCHING: {current_url} at depth {current_depth}")
-        html = fetch_page(current_url)
+        response = fetch_page(current_url)
 
-        if not html:
+        if not response:
             # Handle error state in DB
             with driver.session() as session:
                 session.run("""
@@ -117,7 +117,11 @@ def scan_site(url, max_depth=2):
             continue
 
         try:
-            soup = BeautifulSoup(html, 'html.parser')
+            # Log detected encoding for debugging (Mojibake fix)
+            logging.info(f"Detected encoding for {current_url}: {response.apparent_encoding} (Response encoding: {response.encoding})")
+            
+            # Use raw bytes (response.content) so BeautifulSoup can detect encoding from meta tags
+            soup = BeautifulSoup(response.content, 'html.parser')
             title = soup.title.string if soup.title else ""
 
             # Create HTagNode and get content

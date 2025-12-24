@@ -42,13 +42,15 @@ def get_site_tree(url: str = None):
     try:
         with driver.session() as session:
             # If no URL provided, get roots (nodes with no incoming LINKS_TO within the dataset, or just top nodes)
-            # For simplicity in this focused view, if no URL, we return the top "root" pages (no parents in DB)
+            # If no URL provided, get roots (nodes with no incoming LINKS_TO within the dataset, or just top nodes)
+            # Returning all distinct roots (no incoming links) as "Recent Investigations"
             if not url:
                 result = session.run("""
                     MATCH (n:Page)
                     WHERE NOT ()-[:LINKS_TO]->(n)
-                    RETURN n.url as url, n.title as title
-                    LIMIT 20
+                    RETURN DISTINCT n.url as url, n.title as title
+                    ORDER BY n.url
+                    LIMIT 50
                 """)
                 nodes = [{"id": record["url"], "label": record["title"] or record["url"], "type": "root"} for record in result]
                 return {"nodes": nodes, "parent": None, "current": None}
@@ -59,7 +61,9 @@ def get_site_tree(url: str = None):
                 OPTIONAL MATCH (current)-[:LINKS_TO]->(child:Page)
                 OPTIONAL MATCH (parent:Page)-[:LINKS_TO]->(current)
                 RETURN 
-                    current.url as current_url, current.title as current_title,
+                    current.url as current_url, 
+                    current.title as current_title,
+                    current.content as current_content,
                     collect(DISTINCT {id: child.url, label: child.title}) as children,
                     collect(DISTINCT {id: parent.url, label: parent.title}) as parents
             """, url=url)
@@ -68,7 +72,11 @@ def get_site_tree(url: str = None):
             if not data:
                 return {"error": "Node not found"}
 
-            current_node = {"id": data["current_url"], "label": data["current_title"] or data["current_url"]}
+            current_node = {
+                "id": data["current_url"], 
+                "label": data["current_title"] or data["current_url"],
+                "content": data["current_content"]
+            }
             
             # Clean up children/parents (remove nulls if any)
             children = [c for c in data["children"] if c["id"]]
