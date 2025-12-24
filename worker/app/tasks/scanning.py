@@ -63,6 +63,9 @@ def extract_links(soup, base_url):
     base_domain = urlparse(base_url).netloc
 
     for a_tag in soup.find_all('a', href=True):
+        if len(links) >= 100:
+            print(f"Reached limit of 100 links for {base_url}")
+            break
         href = a_tag['href']
         full_url = urljoin(base_url, href)
         parsed_url = urlparse(full_url)
@@ -80,6 +83,7 @@ def extract_links(soup, base_url):
 @celery_app.task
 def scan_site(url, max_depth=2):
     print(f"Scanning site: {url} with max_depth: {max_depth}")
+    logging.info(f"START SCAN: {url} max_depth={max_depth}")
 
     driver = get_db_driver()
 
@@ -99,6 +103,7 @@ def scan_site(url, max_depth=2):
             continue
 
         print(f"Fetching: {current_url} (Depth: {current_depth})")
+        logging.info(f"FETCHING: {current_url} at depth {current_depth}")
         html = fetch_page(current_url)
 
         if not html:
