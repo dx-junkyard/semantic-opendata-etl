@@ -1,10 +1,55 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 
 export default function Home() {
+  const [url, setUrl] = useState('');
+  const [status, setStatus] = useState('');
+
+  const handleScan = async () => {
+    if (!url) return;
+    setStatus('Scanning...');
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/scan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(`Scan started: ${data.task_id}`);
+      } else {
+         const errorData = await res.json();
+        setStatus(`Error: ${errorData.detail || 'Failed to start scan'}`);
+      }
+    } catch (error) {
+      console.error(error);
+      setStatus('Error connecting to server');
+    }
+  };
+
   return (
     <div className="flex h-screen w-full flex-col bg-gray-50">
-      <header className="flex h-16 items-center border-b bg-white px-6 shadow-sm">
+      <header className="flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
         <h1 className="text-xl font-bold text-gray-800">Semantic Opendata ETL Platform</h1>
+        <div className="flex items-center gap-2">
+            <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Enter URL to scan"
+                className="w-96 rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            />
+            <button
+                onClick={handleScan}
+                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+                Start Scan
+            </button>
+            {status && <span className="text-sm text-gray-500">{status}</span>}
+        </div>
       </header>
       <main className="flex flex-1 overflow-hidden">
         {/* Left Pane: Site Tree */}
