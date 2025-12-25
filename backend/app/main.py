@@ -44,12 +44,14 @@ def get_site_tree(url: str = None):
             # If no URL provided, get roots (nodes with no incoming LINKS_TO within the dataset, or just top nodes)
             # If no URL provided, get roots (nodes with no incoming LINKS_TO within the dataset, or just top nodes)
             # Returning all distinct roots (no incoming links) as "Recent Investigations"
+            # If no URL provided, get roots (nodes with no incoming LINKS_TO within the dataset, or just top nodes)
+            # Returning all distinct roots (no incoming links) as "Recent Investigations"
             if not url:
                 result = session.run("""
                     MATCH (n:Page)
-                    WHERE NOT ()-[:LINKS_TO]->(n)
-                    RETURN DISTINCT n.url as url, n.title as title
-                    ORDER BY n.url
+                    WHERE n.level = 0
+                    RETURN n.url as url, n.title as title
+                    ORDER BY n.last_scanned_at DESC
                     LIMIT 50
                 """)
                 nodes = [{"id": record["url"], "label": record["title"] or record["url"], "type": "root"} for record in result]
