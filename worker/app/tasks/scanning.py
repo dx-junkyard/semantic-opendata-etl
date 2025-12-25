@@ -128,6 +128,9 @@ def scan_site(url, max_depth=2):
             htag_node = create_htag_node(soup, current_url, title)
             content_list = htag_node.get_content()
             content_text = "\n".join(content_list)
+            
+            # Save raw HTML for rendering (Mojibake fix: use decoded soup)
+            raw_html = soup.decode()
 
             # Extract and process links
             links = extract_links(soup, current_url)
@@ -139,9 +142,10 @@ def scan_site(url, max_depth=2):
                     SET p.title = $title,
                         p.level = $level,
                         p.content = $content,
+                        p.raw_html = $raw_html,
                         p.last_scanned_at = timestamp(),
                         p.error = false
-                """, url=current_url, title=title, level=current_depth, content=content_text)
+                """, url=current_url, title=title, level=current_depth, content=content_text, raw_html=raw_html)
 
                 for link in links:
                     # Create Link relationship
