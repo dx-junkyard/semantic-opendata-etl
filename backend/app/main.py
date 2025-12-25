@@ -1,8 +1,11 @@
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from celery import Celery
 from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl
 import os
+import re
 
 app = FastAPI()
 
@@ -92,6 +95,40 @@ def get_site_tree(url: str = None):
     except Exception as e:
         print(f"Error fetching tree: {e}")
         return {"error": str(e)}
+
+@app.get("/api/v1/render", response_class=HTMLResponse)
+def render_page(url: str):
+    try:
+        with driver.session() as session:
+            # Fetch raw_html
+            result = session.run("""
+                MATCH (n:Page {url: $url})
+                RETURN n.raw_html as raw_html
+            """, url=url)
+            
+            record = result.single()
+            if not record or not record["raw_html"]:
+                return "<html><body><h1>Page content not found</h1></body></html>"
+            
+            raw_html = record["raw_html"]
+            
+            # Inject <base> tag to fix relative asset paths
+            # Use regex to handle <head> with attributes or case variations
+            base_tag = f'<base href="{url}">'
+            
+            # 1. Try to inject after opening <head>
+            if re.search(r'<head\b', raw_html, re.IGNORECASE):
+                html_content = re.sub(r'(<head\b[^>]*>)', lambda m: m.group(1) + base_tag, raw_html, count=1, flags=re.IGNORECASE)
+            # 2. Try to inject after opening <html>
+            elif re.search(r'<html\b', raw_html, re.IGNORECASE):
+                html_content = re.sub(r'(<html\b[^>]*>)', lambda m: m.group(1) + "<head>" + base_tag + "</head>", raw_html, count=1, flags=re.IGNORECASE)
+            # 3. Fallback: prepend
+            else:
+                html_content = base_tag + raw_html
+                
+            return html_content
+    except Exception as e:
+        return f"<html><body><h1>Error rendering page: {e}</h1></body></html>"
 
 @app.post("/api/v1/reset")
 def reset_db():

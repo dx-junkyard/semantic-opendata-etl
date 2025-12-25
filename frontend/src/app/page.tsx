@@ -247,21 +247,29 @@ export default function Home() {
             </section>
 
             {/* 2. MIDDLE PANE: Content (50%) */}
-            <section className="flex-1 min-w-[400px] bg-white flex flex-col border-r">
+            <section className="flex-1 min-w-[400px] bg-white flex flex-col border-r w-full h-full relative">
+              {/* Loading Overlay */}
+              {loading && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                </div>
+              )}
+
               <div className="p-4 border-b bg-slate-50 font-semibold text-slate-700 flex items-center justify-between">
-                <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-blue-500" /> Page Content</div>
-                {status && <span className="text-xs font-normal text-slate-400 italic">{status}</span>}
+                <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-blue-500" /> Page Preview</div>
+                <div className="text-xs text-slate-400">{status}</div>
               </div>
-              <div className="flex-1 overflow-y-auto p-6 bg-white">
-                {data.current?.content ? (
-                  <div className="prose prose-sm max-w-none text-slate-800 leading-relaxed whitespace-pre-wrap">
-                    {data.current.content}
-                  </div>
+
+              <div className="flex-1 bg-gray-100 relative">
+                {data.current?.id ? (
+                  <iframe
+                    src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/render?url=${encodeURIComponent(data.current.id)}`}
+                    className="w-full h-full border-none bg-white"
+                    title="Content Preview"
+                  />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                    <AlertCircle className="h-8 w-8 mb-2 opacity-20" />
-                    <p>No content available. Scan to extract.</p>
-                    <button onClick={() => triggerScan(data.current?.id || url)} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">Scan Now</button>
+                    <p>Select a page to view content</p>
                   </div>
                 )}
               </div>
